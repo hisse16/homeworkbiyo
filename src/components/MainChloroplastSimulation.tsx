@@ -3,6 +3,7 @@ import { SimulationParams } from '../types';
 import { Sun, Droplet, Wind, Zap, Play, Pause, RotateCcw, Sparkles } from 'lucide-react';
 import { soundEngine } from '../utils/soundEngine';
 import { SoundControl } from './SoundControl';
+import { FactorGraph } from './FactorGraph';
 
 interface Props {
   params: SimulationParams;
@@ -121,7 +122,7 @@ export const MainChloroplastSimulation: React.FC<Props> = ({ params, setParams }
   const protonCount = Math.round((params.water / 100) * 8);
 
   return (
-    <div className="w-full flex-1 flex flex-col justify-between max-w-6xl mx-auto px-2 sm:px-6 py-2 select-none">
+    <div className="smartboard-simulation w-full flex-1 flex flex-col justify-between max-w-[1600px] mx-auto px-2 sm:px-4 py-1 select-none">
       {/* 1. TOP STATUS & RATE DISPLAY */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 border border-slate-800 rounded-2xl p-3 sm:px-5">
         <div className="flex items-center gap-3">
@@ -152,12 +153,13 @@ export const MainChloroplastSimulation: React.FC<Props> = ({ params, setParams }
           <span className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold border ${rateColor}`}>
             {rateLabel}
           </span>
+          <FactorGraph light={params.light} water={params.water} co2={params.co2} />
         </div>
       </div>
 
       {/* 2. THE LARGE INTERACTIVE CHLOROPLAST CANVAS (Approx 65-70% of screen) */}
       <div className="bg-slate-900/80 rounded-3xl border border-slate-800 p-3 sm:p-5 shadow-2xl relative my-2 flex-1 flex items-center justify-center overflow-hidden">
-        <svg viewBox="0 0 900 480" className="w-full h-full max-h-[55vh] select-none">
+        <svg viewBox="0 0 900 480" className="w-full h-full max-h-[46vh] select-none">
           <defs>
             {/* Chloroplast background radial gradient */}
             <radialGradient id="simChloroBg" cx="50%" cy="50%" r="50%">
@@ -416,7 +418,7 @@ export const MainChloroplastSimulation: React.FC<Props> = ({ params, setParams }
       </div>
 
       {/* 3. BOTTOM CONTROL PANEL (Sliders + Scenarios + Buttons with >= 50px touch targets) */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 space-y-3 shadow-xl">
+      <div className="simulation-controls bg-slate-900 border border-slate-800 rounded-3xl p-3 sm:p-4 space-y-2 shadow-xl">
         {/* Quick Classroom Preset Scenarios */}
         <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-slate-800/80">
           <span className="text-xs font-mono font-bold text-slate-400">
