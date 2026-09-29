@@ -152,3 +152,5 @@ button, input, [role="button"] {
     transition-duration: 0.001ms !important;
   }
 }
+
+.smartboard-simulation{overflow:hidden}.smartboard-simulation input[type="range"]{min-height:22px}.factor-graph{flex:0 0 auto}
