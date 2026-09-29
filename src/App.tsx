@@ -1,183 +1,64 @@
-import React, { useState } from 'react';
-import { AppTab, SimulationParams } from './types';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { HomeHero } from './components/HomeHero';
-import { ExploreSection } from './components/ExploreSection';
-import { PhotosynthesisSection } from './components/PhotosynthesisSection';
-import { MainChloroplastSimulation } from './components/MainChloroplastSimulation';
-import { ClassQuestions } from './components/ClassQuestions';
-import { SoundControl } from './components/SoundControl';
-import { Maximize2, Minimize2, Tv, Home, Compass, Sun, Sliders, HelpCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, ArrowRight, Atom, Check, Droplets, GitCompareArrows, Leaf, Lightbulb, Maximize2, Minimize2, Play, RotateCcw, Sparkles, Sun, Waves, Wind, X, Zap } from 'lucide-react';
 
-export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<AppTab>('home');
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(Boolean(document.fullscreenElement));
+type Screen='home'|'map'|'light'|'calvin'|'pigments'|'lab'|'compare'|'present';
+const nav:[Screen,string,string][]=[['map','Büyük Resim','01'],['light','Işığa Bağlı','02'],['calvin','Calvin Döngüsü','03'],['pigments','Pigmentler','04'],['lab','Modeli Test Et','05'],['compare','Karşılaştır & Yenile','06']];
+const simSteps=[
+ {title:'Işık yakalanır',text:'Pigmentler ışık enerjisini soğurur ve ışığa bağlı tepkimelerin başlamasına katkı sağlar.',icon:Lightbulb},
+ {title:'Su parçalanır',text:'Suyun parçalanmasıyla elektronlar sürece katılır ve oksijen açığa çıkar.',icon:Droplets},
+ {title:'Elektronlar taşınır',text:'Elektronların taşınması sırasında enerji kullanılarak ATP sentezine katkı sağlanır.',icon:Zap},
+ {title:'Enerji taşıyıcıları oluşur',text:'ATP ve NADPH, ışığa bağlı tepkimelerden Calvin döngüsüne taşınan girdilerdir.',icon:Waves},
+ {title:'Karbon organik maddeye katılır',text:'CO₂, ATP ve NADPH kullanılarak Calvin döngüsünde organik madde sentezine katılır.',icon:Leaf}
+];
 
-  // Global shared simulation parameters
-  const [params, setParams] = useState<SimulationParams>({
-    light: 75,
-    water: 70,
-    co2: 70,
-    speed: 'normal',
-    showElectrons: true,
-    showProtons: true
-  });
+export default function App(){
+ const [screen,setScreen]=useState<Screen>('home'),[step,setStep]=useState(0),[running,setRunning]=useState(false);
+ const [light,setLight]=useState(70),[water,setWater]=useState(70),[co2,setCo2]=useState(70),[sound,setSound]=useState(true);
+ const [full,setFull]=useState(Boolean(document.fullscreenElement)),[teacher,setTeacher]=useState(false);
+ useEffect(()=>{const f=()=>setFull(Boolean(document.fullscreenElement));document.addEventListener('fullscreenchange',f);return()=>document.removeEventListener('fullscreenchange',f)},[]);
+ useEffect(()=>{if(!running)return;const t=window.setInterval(()=>setStep(s=>s<4?s+1:0),2200);return()=>clearInterval(t)},[running]);
+ const go=(s:Screen)=>{setScreen(s);if(s!=='light')setRunning(false)};
+ const toggle=async()=>{if(!document.fullscreenElement)await document.documentElement.requestFullscreen().catch(()=>{});else await document.exitFullscreen().catch(()=>{})};
+ const speak=(t:string)=>{if(!sound||!('speechSynthesis'in window))return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='tr-TR';u.rate=.86;u.pitch=1.02;window.speechSynthesis.speak(u)};
+ if(screen==='home')return <Home go={()=>go('map')} toggle={toggle} full={full}/>;
+ if(screen==='present')return <Presentation exit={()=>go('home')} toggle={toggle} full={full} teacher={teacher} setTeacher={setTeacher}/>;
+ const idx=Math.max(0,nav.findIndex(x=>x[0]===screen));
+ return <div className="lesson-app">
+  <header className="lesson-topbar"><button className="brand" onClick={()=>go('home')}><span className="brand-mark"><Leaf/></span><span><b>FOTOSENTEZ</b><small>10. SINIF · BİLİMSEL MODEL</small></span></button>
+   <nav className="progress-track">{nav.map(n=><button key={n[0]} className={screen===n[0]?'active':''} onClick={()=>go(n[0])}><i>{n[2]}</i><span>{n[1]}</span></button>)}</nav>
+   <div className="top-actions"><button className="icon-btn" onClick={()=>setSound(!sound)}>{sound?'🔊':'🔇'}</button><button className="icon-btn" onClick={toggle}>{full?<Minimize2/>:<Maximize2/>}</button></div>
+  </header>
+  <main className="lesson-stage">
+   {screen==='map'&&<BigPicture next={()=>go('light')} speak={speak}/>}
+   {screen==='light'&&<LightStage step={step} setStep={setStep} running={running} setRunning={setRunning} speak={speak}/>}
+   {screen==='calvin'&&<Calvin next={()=>go('pigments')} speak={speak}/>}
+   {screen==='pigments'&&<Pigments next={()=>go('lab')} speak={speak}/>}
+   {screen==='lab'&&<Lab light={light} water={water} co2={co2} setLight={setLight} setWater={setWater} setCo2={setCo2} next={()=>go('compare')} speak={speak}/>}
+   {screen==='compare'&&<Compare present={()=>go('present')} speak={speak}/>}
+  </main>
+  <footer className="lesson-footer"><button className="back-btn" onClick={()=>go(idx===0?'home':nav[idx-1][0])}><ArrowLeft/> Geri</button><div className="footer-note"><span className="dot"/> BİY.10.1.2 · Bilimsel model oluşturma</div><button className="sound-pill" onClick={()=>speak('Fotosentez; ışık enerjisinin kullanıldığı, enerji taşıyıcılarının üretildiği ve karbondioksitin organik madde sentezine katıldığı bir süreçtir.')}>🔊 ANLAT</button></footer>
+ </div>
+}
 
-  React.useEffect(() => { const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement)); document.addEventListener('fullscreenchange', onFs); return () => document.removeEventListener('fullscreenchange', onFs); }, []);
+function Home({go,toggle,full}:{go:()=>void;toggle:()=>void;full:boolean}){return <div className="hero"><div className="hero-content"><div className="eyebrow"><Sparkles/> BİLİMSEL MODEL · 10. SINIF</div><h1>FOTOSENTEZİ<br/><em>ÇALIŞTIR.</em></h1><p className="hero-lead">Bir sunum değil. <strong>Tahtada çalışan bir bilimsel model.</strong></p><p className="hero-sub">Işık → elektron taşınması → ATP & NADPH → Calvin döngüsü</p><div className="hero-actions"><button className="primary-cta" onClick={go}><Play fill="currentColor"/> MODELİ BAŞLAT <ArrowRight/></button><button className="secondary-cta" onClick={toggle}><Maximize2/> {full?'Tam Ekran Açık':'Tahta Modu'}</button></div><div className="hero-cards"><div><Sun/><b>IŞIĞA BAĞLI</b><span>ETS · ATP · H₂O → O₂</span></div><div><Leaf/><b>CALVİN DÖNGÜSÜ</b><span>CO₂ → organik madde</span></div><div><GitCompareArrows/><b>MODELİ YENİLE</b><span>Karşılaştır · Kanıt · Geliştir</span></div></div></div><div className="hero-chloroplast"><div className="chloroplast-orbit orbit-a"/><div className="chloroplast-orbit orbit-b"/><div className="chloroplast-core"><i/><i/><i/><i/></div><span className="molecule mol-1">CO₂</span><span className="molecule mol-2">H₂O</span><span className="molecule mol-3">O₂</span></div></div>}
 
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
-        setIsFullscreen(false);
-      }
-    }
-  };
+function Heading({num,title,desc,button}:{num:string;title:string;desc:string;button:()=>void}){return <div className="section-heading"><div><span className="kicker">{num}</span><h2>{title}</h2><p>{desc}</p></div><button className="explain-btn" onClick={button}>🔊 ANLAT</button></div>}
 
-  return (
-    <ErrorBoundary>
-      <div className="smartboard-app bg-slate-950 text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-200">
-        {/* 1. TOP HEADER & THE CLEAN 4 MAIN SMARTBOARD TABS */}
-        <header className="smartboard-header bg-slate-950/95 border-b border-slate-800 px-3 sm:px-5 py-2 z-40">
-          <div className="smartboard-header-inner max-w-[1600px] mx-auto flex items-center justify-between gap-3">
-            {/* Title / Brand (Clickable to return Home) */}
-            <button
-              onClick={() => setActiveTab('home')}
-              className="flex items-center gap-3 text-left cursor-pointer group"
-            >
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center border border-emerald-400/40 shadow-lg shadow-emerald-950/60 group-hover:scale-105 transition-transform">
-                <Tv className="w-5 h-5 text-amber-200" />
-              </div>
-              <div>
-                <h1 className="font-black text-sm sm:text-base tracking-tight text-white flex items-center gap-1.5">
-                  <span>FOTOSENTEZ</span>
-                  <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700/60">
-                    10. Sınıf Modeli
-                  </span>
-                </h1>
-                <p className="text-[11px] text-slate-400 hidden sm:block">
-                  Akıllı Tahta Etkileşimli Biyoloji Sunumu
-                </p>
-              </div>
-            </button>
+function BigPicture({next,speak}:{next:()=>void;speak:(x:string)=>void}){return <section className="screen-panel"><Heading num="01 · BÜYÜK RESİM" title={<>Fotosentez bir <em>sistemdir.</em></>} desc="Modeli tek bakışta oku: ışık enerjisi yakalanır, enerji taşıyıcıları oluşur ve CO₂ organik madde sentezine katılır." button={()=>speak('Fotosentez modelimiz iki büyük bölümden oluşur. Işığa bağlı tepkimelerde ışık enerjisi kullanılır, ATP ve NADPH oluşur ve suyun parçalanmasıyla oksijen açığa çıkar. Calvin döngüsünde ise CO₂, ATP ve NADPH kullanılarak organik madde sentezine katılır.')}/><div className="system-map"><div className="input-rail"><Card icon={<Sun/>} title="IŞIK" sub="Enerji kaynağı" gold/><Card icon={<Droplets/>} title="H₂O" sub="Elektron kaynağı"/><Card icon={<Wind/>} title="CO₂" sub="Karbon kaynağı"/></div><div className="chloroplast-map"><label>KLOROPLAST</label><div className="phase light-phase"><span>☀️</span><b>IŞIĞA BAĞLI TEPKİMELER</b><small>Pigment → elektron → ETS → ATP + NADPH</small><div className="mini-thylakoids"><i/><i/><i/></div><strong>H₂O → O₂</strong></div><div className="flow-arrow"><ArrowRight/></div><div className="phase calvin-phase"><span>🌿</span><b>CALVİN DÖNGÜSÜ</b><small>CO₂ + ATP + NADPH → organik madde</small><div className="cycle-ring"><span>CO₂</span><span>ATP</span><span>NADPH</span></div></div></div><div className="output-rail"><Card title="O₂" sub="Ortama bırakılır"/><Card title="ORGANİK MADDE" sub="Sentezlenir" green/></div></div><div className="bottom-tip"><Atom/><b>MODELİ OKU:</b> Her kutuda “ne giriyor → ne oluyor → ne çıkıyor?” sorusunu sor.<button onClick={next}>IŞIĞI YAK <ArrowRight/></button></div></section>}
 
-            {/* The 4 Main Navigation Tabs + Home (>= 48px touch targets for Smartboard) */}
-            <nav className="smartboard-nav flex items-center gap-1 bg-slate-900 p-1 rounded-2xl border border-slate-800">
-              <button
-                onClick={() => setActiveTab('home')}
-                className={`h-11 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'home'
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400 shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Ana Sayfa"
-              >
-                <Home className="w-4 h-4" />
-                <span className="hidden md:inline">Giriş</span>
-              </button>
+function Card({icon,title,sub,gold,green}:{icon?:React.ReactNode;title:string;sub:string;gold?:boolean;green?:boolean}){return <div className={'info-card '+(gold?'gold ':'')+(green?'green':'')}>{icon}{<b>{title}</b>}<small>{sub}</small></div>}
 
-              <button
-                onClick={() => setActiveTab('explore')}
-                className={`h-11 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'explore'
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400 shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Compass className="w-4 h-4" />
-                <span>KEŞFET</span>
-              </button>
+function LightStage({step,setStep,running,setRunning,speak}:{step:number;setStep:(n:number)=>void;running:boolean;setRunning:(b:boolean)=>void;speak:(x:string)=>void}){const s=simSteps[step],Icon=s.icon;return <section className="screen-panel"><Heading num="02 · IŞIĞA BAĞLI TEPKİMELER" title={<>Enerjiyi <em>hareket ettir.</em></>} desc="Işık enerjisi pigmentler tarafından soğurulur; suyun parçalanması, elektronların taşınması ve enerji taşıyıcılarının oluşumu model üzerinde görünür." button={()=>speak(s.text)}/><div className="simulation-board"><div className="sun-source"><Sun/><b>IŞIK</b><span>enerji</span></div><div className="board-center"><label>TİLAKOİT ZARI</label><div className="electron-lane">{[0,1,2,3,4,5].map(i=><span key={i} className={step>=2?'electron active':''}>e⁻</span>)}</div><div className="thylakoid-stack"><i/><i/><i/></div><div className="reaction-nodes">{simSteps.slice(0,4).map((x,i)=>{const I=x.icon;return <div key={x.title} className={step>=i?'lit':''}><I/><b>{i===0?'PİGMENT':i===1?'SU':i===2?'ETS':'ATP + NADPH'}</b><small>{i===0?'Işık soğurulur':i===1?'Parçalanır → O₂':i===2?'Elektron taşınır':'Enerji taşıyıcıları'}</small></div>})}</div></div><div className="product-rail"><Card title="O₂" sub="çıkış"/><Card title="ATP" sub="→ Calvin" gold/><Card title="NADPH" sub="→ Calvin" gold/></div></div><div className="step-card"><div className="step-number">{step+1}<small>/5</small></div><div><b>{s.title}</b><p>{s.text}</p></div></div><div className="sim-controls"><button onClick={()=>setStep(Math.max(0,step-1))} disabled={!step}><ArrowLeft/></button><button className="run-btn" onClick={()=>setRunning(!running)}>{running?'❚❚ DURDUR':'▶ OTOMATİK AKIŞ'}</button><button onClick={()=>setStep(Math.min(4,step+1))} disabled={step===4}><ArrowRight/></button><button onClick={()=>{setStep(0);setRunning(false)}}><RotateCcw/></button></div></section>}
 
-              <button
-                onClick={() => setActiveTab('photosynthesis')}
-                className={`h-11 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'photosynthesis'
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400 shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Sun className="w-4 h-4" />
-                <span>FOTOSENTEZ</span>
-              </button>
+function Calvin({next,speak}:{next:()=>void;speak:(x:string)=>void}){return <section className="screen-panel"><Heading num="03 · IŞIKTAN BAĞIMSIZ TEPKİMELER" title={<>Karbonu <em>organik maddeye</em> taşı.</>} desc="Burada ışık doğrudan kullanılmaz; ışığa bağlı tepkimelerde oluşan ATP ve NADPH kullanılır." button={()=>speak('Calvin döngüsünde karbondioksit, ışığa bağlı tepkimelerde üretilen ATP ve NADPH kullanılarak organik madde sentezine katılır.')}/><div className="calvin-visual"><div className="calvin-input"><Card title="CO₂" sub="karbon kaynağı" gold/><Card title="ATP" sub="enerji"/><Card title="NADPH" sub="indirgenme gücü"/></div><div className="big-cycle"><div className="cycle-core"><Leaf/><b>CALVİN<br/>DÖNGÜSÜ</b><small>organik madde sentezi</small></div><i/><i/><i/><i/></div><Card title="ORGANİK MADDE" sub="Karbonhidrat sentezinin temeli" green/></div><div className="science-note"><Check/><span><b>Bilimsel sınır:</b> Model ana girdileri ve çıktıyı gösterir; Calvin döngüsünün ara basamaklarını ayrıntılandırmaz.</span><button onClick={next}>PİGMENTLERE GEÇ <ArrowRight/></button></div></section>}
 
-              <button
-                onClick={() => setActiveTab('simulation')}
-                className={`h-11 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'simulation'
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400 shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Sliders className="w-4 h-4" />
-                <span>SİMÜLASYON</span>
-              </button>
+function Pigments({next,speak}:{next:()=>void;speak:(x:string)=>void}){return <section className="screen-panel"><Heading num="04 · PİGMENTLER" title={<>Işığı <em>yakala.</em></>} desc="Pigmentler ışığa bağlı tepkimelerde ışık enerjisinin soğurulmasını sağlar." button={()=>speak('Pigmentler ışık enerjisini soğurur ve bu enerji fotosentezin ışığa bağlı tepkimelerinde kullanılır.')}/><div className="pigment-grid"><div className="spectrum-card"><div className="spectrum"><span>mor</span><span>mavi</span><span>yeşil</span><span>sarı</span><span>turuncu</span><span>kırmızı</span></div><div className="photon"><Sun/><b>FOTON</b><small>ışık enerjisi</small></div><div className="capture-zone"><div className="pigment-orb">P</div><div><b>PİGMENT</b><p>Işığı soğurur → enerjinin fotosentez sürecine aktarılmasına katkı sağlar.</p></div></div></div><div className="pigment-facts"><Fact n="01" t="Işığı soğurur" d="Pigmentler ışık enerjisini yakalar."/><Fact n="02" t="Enerjiyi sürece bağlar" d="Soğurulan enerji ışığa bağlı tepkimelerde kullanılır."/><Fact n="03" t="Modeldeki görevi" d="Işık ile elektronların enerji kazanması arasındaki köprüdür."/></div></div><div className="bottom-tip"><Sparkles/><b>HATIRLA:</b> Bu modelde pigmentlerin görevi ışığı soğurmaktır; kimyasal yapı ayrıntısı modele dahil değildir.<button onClick={next}>MODELİ TEST ET <ArrowRight/></button></div></section>}
+function Fact({n,t,d}:{n:string;t:string;d:string}){return <div><span>{n}</span><b>{t}</b><small>{d}</small></div>}
 
-              <button
-                onClick={() => setActiveTab('questions')}
-                className={`h-11 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'questions'
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-400 shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <HelpCircle className="w-4 h-4" />
-                <span>SORULAR</span>
-              </button>
-            </nav>
+function Lab({light,water,co2,setLight,setWater,setCo2,next,speak}:{light:number;water:number;co2:number;setLight:(n:number)=>void;setWater:(n:number)=>void;setCo2:(n:number)=>void;next:()=>void;speak:(x:string)=>void}){const rate=Math.min(light,water,co2),level=rate>=75?'YÜKSEK':rate>=45?'ORTA':'DÜŞÜK',lim=rate===light?'Işık':rate===water?'Su':'CO₂';return <section className="screen-panel"><Heading num="05 · MODELİ TEST ET" title={<>Koşulları değiştir, <em>modeli gözle.</em></>} desc="Bu gösterge deney verisi değildir; çevresel koşulların modeli nasıl etkilediğini nitel olarak gösterir." button={()=>speak('Işık, su ve karbondioksit fotosentez sürecinin girdileridir. Bu gösterge, en sınırlayıcı koşulun modeldeki hızı nasıl etkilediğini nitel olarak gösterir.')}/><div className="lab-layout"><div className="control-deck"><Control icon={<Sun/>} label="Işık" value={light} set={setLight}/><Control icon={<Droplets/>} label="Su" value={water} set={setWater}/><Control icon={<Wind/>} label="CO₂" value={co2} set={setCo2}/><button className="preset" onClick={()=>{setLight(90);setWater(90);setCo2(90)}}>☀️ OPTİMAL KOŞUL</button><button className="preset" onClick={()=>setLight(25)}>💡 IŞIĞI SINIRLA</button></div><div className="lab-result"><div className="gauge" style={{'--rate':rate} as React.CSSProperties}><div><strong>{rate}</strong><small>/100</small><span>MODEL HIZ GÖSTERGESİ</span></div></div><div className="level">{level}</div><p>Sınırlayıcı koşul: <b>{lim}</b></p></div></div><div className="bottom-tip"><Atom/><b>SOR:</b> “Tek bir koşulu düşürürsem ne değişiyor?”<button onClick={next}>MODELİ KARŞILAŞTIR <GitCompareArrows/></button></div></section>}
+function Control({icon,label,value,set}:{icon:React.ReactNode;label:string;value:number;set:(n:number)=>void}){return <div className="control-row"><div className="control-label">{icon}<b>{label}</b><strong>{value}</strong></div><input type="range" min="0" max="100" value={value} onChange={e=>set(Number(e.target.value))}/><div className="range-end"><span>az</span><span>çok</span></div></div>}
 
-            {/* Sound Control & Fullscreen for Smartboard */}
-            <div className="flex items-center gap-2 shrink-0">
-              <SoundControl variant="header" />
+function Compare({present,speak}:{present:()=>void;speak:(x:string)=>void}){const [revised,setRevised]=useState(false);return <section className="screen-panel"><Heading num="06 · BİLİMSEL MODELLE KARŞILAŞTIR" title={<>Modeli <em>eleştir. Yenile.</em></>} desc="Ödev yönergesinin 7–9. basamağı: benzerlikleri ve eksikleri belirle, sonra kanıta göre modelini geliştir." button={()=>speak('Modelimizi bilimsel modelle karşılaştırıyoruz. Eksik veya hatalı yönleri belirledikten sonra modelimizi kanıta göre yeniliyoruz.')}/><div className="compare-grid"><CompareCard title="İLK MODEL" items={['Işığa bağlı tepkimeler','ETS ve ATP sentezi','Su → O₂','Calvin döngüsü','Pigmentler']}/><div className="compare-center"><GitCompareArrows/><b>↔</b><small>KARŞILAŞTIR</small></div><CompareCard title="BİLİMSEL MODEL" items={['Pigmentler ışığı soğurur','Elektron taşıma sistemi gösterilir','ATP ve NADPH enerji taşıyıcılarıdır','Calvin döngüsünde CO₂ kullanılır','Madde ve enerji akışı bağlantılıdır']} science/></div><div className="revision"><div><b>🔧 REVİZYON NOTU</b><p>{revised?'Model yenilendi: ATP/NADPH → Calvin, H₂O → O₂ ve pigment → ışık bağlantıları görünür hâle getirildi.':'Karşılaştırma sonucunda bağlantıları daha açık göstermeye karar verdik. “Ne giriyor → ne oluyor → ne çıkıyor?” mantığıyla modeli yeniliyoruz.'}</p></div><button className={revised?'revised-btn':'revise-btn'} onClick={()=>setRevised(true)}>{revised?<><Check/> MODEL YENİLENDİ</>:<><RotateCcw/> MODELİ YENİLE</>}</button></div><div className="presentation-launch"><div><Sparkles/><b>SON ADIM</b><span>Yenilenen modeli sınıfta sun.</span></div><button onClick={present}>SUNUM MODUNU AÇ <ArrowRight/></button></div></section>}
+function CompareCard({title,items,science}:{title:string;items:string[];science?:boolean}){return <div className={'compare-card '+(science?'science':'')}><b>{title}</b><small>{science?'karşılaştırma ölçütü':'oluşturduğumuz'}</small><div className="compare-list">{items.map(x=><div key={x}><Check/>{x}</div>)}</div></div>}
 
-              <button
-                onClick={toggleFullscreen}
-                className="smartboard-action h-12 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold shrink-0"
-                title="Akıllı Tahtada Tam Ekran"
-              >
-                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                <span className="hidden lg:inline">Tam Ekran</span>
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* 2. DYNAMIC MAIN STAGE */}
-        <main className="presentation-main flex flex-col justify-center items-center w-full">
-          {activeTab === 'home' && (
-            <HomeHero
-              onStartExplore={() => setActiveTab('explore')}
-              onNavigateTab={(tab) => setActiveTab(tab)}
-            />
-          )}
-
-          {activeTab === 'explore' && (
-            <ExploreSection
-              onGoToPhotosynthesis={() => setActiveTab('photosynthesis')}
-            />
-          )}
-
-          {activeTab === 'photosynthesis' && (
-            <PhotosynthesisSection
-              onGoToSimulation={() => setActiveTab('simulation')}
-            />
-          )}
-
-          {activeTab === 'simulation' && (
-            <MainChloroplastSimulation params={params} setParams={setParams} />
-          )}
-
-          {activeTab === 'questions' && (
-            <ClassQuestions />
-          )}
-        </main>
-
-
-      </div>
-    </ErrorBoundary>
-  );
-};
-
-export default App;
+function Presentation({exit,toggle,full,teacher,setTeacher}:{exit:()=>void;toggle:()=>void;full:boolean;teacher:boolean;setTeacher:(x:boolean)=>void}){const [i,setI]=useState(0);const current=nav[i][0];const note=['Önce bütün sistemi göster; sonra iki ana bölümü birbirine bağla.','Işık → pigment → elektron → ETS → ATP/NADPH ve su → O₂ akışını vurgula.','CO₂’nin organik madde sentezine katıldığını, ATP/NADPH’nin kullanıldığını söyle.','Pigmentlerin modeldeki temel görevinin ışığı soğurmak olduğunu belirt.','Bunun deney sonucu değil, nitel model göstergesi olduğunu belirt.','İlk model ile bilimsel modeli karşılaştır ve hangi bağlantıları neden değiştirdiğini anlat.'][i];return <div className="presentation-mode"><header className="presentation-header"><b>FOTOSENTEZ · SUNUM MODU <span>{i+1}/6</span></b><div><button onClick={()=>setTeacher(!teacher)}>{teacher?'◉':'○'} ANLATIM NOTU</button><button onClick={toggle}>{full?<Minimize2/>:<Maximize2/>}</button><button onClick={exit}><X/></button></div></header><div className="presentation-content">{current==='map'&&<BigPicture next={()=>setI(1)} speak={()=>{}}/>}{current==='light'&&<LightStage step={0} setStep={()=>{}} running={false} setRunning={()=>{}} speak={()=>{}}/>}{current==='calvin'&&<Calvin next={()=>setI(3)} speak={()=>{}}/>}{current==='pigments'&&<Pigments next={()=>setI(4)} speak={()=>{}}/>}{current==='lab'&&<Lab light={80} water={80} co2={80} setLight={()=>{}} setWater={()=>{}} setCo2={()=>{}} next={()=>setI(5)} speak={()=>{}}/>}{current==='compare'&&<Compare present={()=>{}} speak={()=>{}}/>}{teacher&&<div className="teacher-overlay"><b>🎤 SUNUM NOTU</b><span>{note}</span></div>}</div><footer className="presentation-controls"><button disabled={!i} onClick={()=>setI(i-1)}><ArrowLeft/> ÖNCEKİ</button><button className="exit-present" onClick={exit}>SUNUMDAN ÇIK</button><button disabled={i===5} onClick={()=>setI(i+1)}>SONRAKİ <ArrowRight/></button></footer></div>}
