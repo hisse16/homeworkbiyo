@@ -154,3 +154,6 @@ button, input, [role="button"] {
 }
 
 .smartboard-simulation{overflow:hidden}.smartboard-simulation input[type="range"]{min-height:22px}.factor-graph{flex:0 0 auto}
+
+.smartboard-nav > button{min-height:48px;}
+@media (max-width:1100px){.smartboard-nav > button span{font-size:.7rem}.smartboard-nav-btn{min-width:64px}}
