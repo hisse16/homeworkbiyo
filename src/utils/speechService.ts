@@ -120,13 +120,17 @@ class SpeechService {
     this.stop();
 
     try {
-      const naturalText = this.formatTextForNaturalSpeech(rawText);
+      const naturalText = this.formatTextForNaturalSpeech(rawText)
+        .replace(/\s+/g, ' ')
+        .replace(/\s*([,;:])\s*/g, '$1 ')
+        .replace(/\.\s+/g, '.  ')
+        .trim();
       const utterance = new SpeechSynthesisUtterance(naturalText);
 
       utterance.lang = 'tr-TR';
       // Doğal, sakin ve dinlenebilir öğretmen anlatım temposu
-      utterance.rate = 0.90;
-      utterance.pitch = 1.0;
+      utterance.rate = 0.82;
+      utterance.pitch = 1.03;
 
       const bestVoice = this.getBestTurkishVoice();
       if (bestVoice) {
