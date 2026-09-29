@@ -7,11 +7,11 @@ import { PhotosynthesisSection } from './components/PhotosynthesisSection';
 import { MainChloroplastSimulation } from './components/MainChloroplastSimulation';
 import { ClassQuestions } from './components/ClassQuestions';
 import { SoundControl } from './components/SoundControl';
-import { Maximize2, Minimize2, Tv, Sparkles, Home, Compass, Sun, Sliders, HelpCircle } from 'lucide-react';
+import { Maximize2, Minimize2, Tv, Home, Compass, Sun, Sliders, HelpCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>('home');
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(Boolean(document.fullscreenElement));
 
   // Global shared simulation parameters
   const [params, setParams] = useState<SimulationParams>({
@@ -22,6 +22,8 @@ export const App: React.FC = () => {
     showElectrons: true,
     showProtons: true
   });
+
+  React.useEffect(() => { const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement)); document.addEventListener('fullscreenchange', onFs); return () => document.removeEventListener('fullscreenchange', onFs); }, []);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -37,10 +39,10 @@ export const App: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30 selection:text-emerald-200">
+      <div className="smartboard-app bg-slate-950 text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-200">
         {/* 1. TOP HEADER & THE CLEAN 4 MAIN SMARTBOARD TABS */}
-        <header className="bg-slate-950/95 border-b border-slate-900 px-3 sm:px-6 py-2.5 sticky top-0 z-40 backdrop-blur-md">
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+        <header className="smartboard-header bg-slate-950/95 border-b border-slate-800 px-3 sm:px-5 py-2 z-40">
+          <div className="smartboard-header-inner max-w-[1600px] mx-auto flex items-center justify-between gap-3">
             {/* Title / Brand (Clickable to return Home) */}
             <button
               onClick={() => setActiveTab('home')}
@@ -63,7 +65,7 @@ export const App: React.FC = () => {
             </button>
 
             {/* The 4 Main Navigation Tabs + Home (>= 48px touch targets for Smartboard) */}
-            <nav className="flex items-center gap-1 sm:gap-2 bg-slate-900 p-1 rounded-2xl border border-slate-800">
+            <nav className="smartboard-nav flex items-center gap-1 bg-slate-900 p-1 rounded-2xl border border-slate-800">
               <button
                 onClick={() => setActiveTab('home')}
                 className={`h-11 px-3 sm:px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -132,7 +134,7 @@ export const App: React.FC = () => {
 
               <button
                 onClick={toggleFullscreen}
-                className="h-11 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold shrink-0"
+                className="smartboard-action h-12 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold shrink-0"
                 title="Akıllı Tahtada Tam Ekran"
               >
                 {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -143,7 +145,7 @@ export const App: React.FC = () => {
         </header>
 
         {/* 2. DYNAMIC MAIN STAGE */}
-        <main className="flex-1 flex flex-col justify-center items-center p-2 sm:p-4 w-full">
+        <main className="presentation-main flex flex-col justify-center items-center w-full">
           {activeTab === 'home' && (
             <HomeHero
               onStartExplore={() => setActiveTab('explore')}
@@ -172,10 +174,7 @@ export const App: React.FC = () => {
           )}
         </main>
 
-        {/* 3. MINIMAL FOOTER FOR CLASSROOM CONTEXT */}
-        <footer className="border-t border-slate-900 px-4 py-2 text-center text-[11px] text-slate-500">
-          <span>10. Sınıf Biyoloji Dersi Fotosentez Modeli • Akıllı Tahta İçin Optimize Edildi</span>
-        </footer>
+
       </div>
     </ErrorBoundary>
   );
