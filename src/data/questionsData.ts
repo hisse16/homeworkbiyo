@@ -213,7 +213,7 @@ export const PROCESS_STEPS_DATA: ProcessStep[] = [
     id: 9,
     title: '9. ATP ve NADPH Calvin Döngüsüne Gider',
     focusArea: 'calvin',
-    description: 'Işıklı evrenin ürünleri stromaya difüze olarak şeker yapımında kullanılmak üzere döngüye katılır.'
+    description: 'Işıklı evrede üretilen ATP ve NADPH stromada kullanılır; Calvin döngüsünde karbonun organik maddeye dönüştürülmesine enerji ve indirgeme gücü sağlar.'
   },
   {
     id: 10,
@@ -225,6 +225,6 @@ export const PROCESS_STEPS_DATA: ProcessStep[] = [
     id: 11,
     title: '11. Organik Madde (Glikoz) Sentezlenir',
     focusArea: 'glucose',
-    description: 'ATP enerjisi ve NADPH indirgeme gücü ile G3P üzerinden glikoz ve diğer besinler üretilir.'
+    description: 'Calvin döngüsünün ürünlerinden G3P’nin bir bölümü döngüyü sürdürmek için kullanılır; bir bölümü ise kloroplasttan çıkarak glikoz gibi karbonhidratların sentezinde kullanılabilir.'
   }
 ];
