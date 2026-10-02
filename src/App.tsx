@@ -1,59 +1,248 @@
-import React,{useEffect,useMemo,useState}from"react";
-import{ArrowLeft,ArrowRight,Atom,Check,ChevronRight,CircleHelp,Fullscreen,Leaf,Pause,Play,RotateCcw,Sun,Volume2,VolumeX,Wind,Droplets,Zap}from"lucide-react";
+import React, { useState, useEffect, useCallback } from 'react';
+import { PresentationStage } from './types';
+import { NavigationHeader, STAGES } from './components/NavigationHeader';
+import { HomeStage } from './components/stages/HomeStage';
+import { CellStage } from './components/stages/CellStage';
+import { ChloroplastStage } from './components/stages/ChloroplastStage';
+import { LightReactionsStage } from './components/stages/LightReactionsStage';
+import { CalvinCycleStage } from './components/stages/CalvinCycleStage';
+import { FactorsStage } from './components/stages/FactorsStage';
+import { WholeSystemStage } from './components/stages/WholeSystemStage';
+import { PigmentsStage } from './components/stages/PigmentsStage';
+import { BuildModelStage } from './components/stages/BuildModelStage';
+import { ScientificModelStage } from './components/stages/ScientificModelStage';
+import { CompareStage } from './components/stages/CompareStage';
+import { ReviseStage } from './components/stages/ReviseStage';
+import { QuizStage } from './components/stages/QuizStage';
+import { speechService } from './utils/speechService';
+import { soundEngine } from './utils/soundEngine';
 
-type View="home"|"cell"|"chloroplast"|"light"|"calvin"|"factors"|"quiz";
-const nav:[View,string,string][]=[
-["home","Başlangıç","01"],["cell","Hücre","02"],["chloroplast","Kloroplast","03"],["light","Işık tepkimeleri","04"],["calvin","Calvin döngüsü","05"],["factors","Hız laboratuvarı","06"],["quiz","Sınıfa sor","07"]
-];
-const speak=(s:string,on:boolean)=>{if(!on||typeof window==="undefined")return;window.speechSynthesis?.cancel();const u=new SpeechSynthesisUtterance(s);u.lang="tr-TR";u.rate=.9;window.speechSynthesis?.speak(u)};
-function Header({view,setView,sound,setSound}:{view:View;setView:(v:View)=>void;sound:boolean;setSound:(v:boolean)=>void}){
- const fs=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen?.();
- return <header className="header"><button className="logo" onClick={()=>setView("home")}><span><Leaf/></span><strong>FOTOSENTEZ</strong><small>10. SINIF · ETKİLEŞİMLİ DERS</small></button><nav>{nav.map(([id,l,n])=><button key={id} className={view===id?"active":""} onClick={()=>setView(id)}><i>{n}</i>{l}</button>)}</nav><div className="header-tools"><button aria-label="Ses" onClick={()=>setSound(!sound)}>{sound?<Volume2/>:<VolumeX/>}</button><button aria-label="Tam ekran" onClick={fs}><Fullscreen/></button></div></header>
-}
-function Progress({view}:{view:View}){const i=nav.findIndex(x=>x[0]===view);return <div className="progressbar"><span style={{width:((i+1)/nav.length)*100+"%"}}/></div>}
-function Title({eyebrow,title,desc,sound,voice}:{eyebrow:string;title:React.ReactNode;desc:string;sound:boolean;voice:string}){return <div className="title"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{desc}</p></div><button className="speak" onClick={()=>speak(voice,sound)}><Volume2/> Anlat</button></div>}
-function Next({children,onClick}:{children:string;onClick:()=>void}){return <button className="next" onClick={onClick}>{children}<ArrowRight/></button>}
+export const App: React.FC = () => {
+  const [currentStage, setCurrentStage] = useState<PresentationStage>('home');
+  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(false);
+  const [studentPlacements, setStudentPlacements] = useState<Record<string, string>>({
+    slot_light_input: 'sunlight',
+    slot_water_input: 'water',
+    slot_thylakoid: 'thylakoid',
+    slot_oxygen_output: 'oxygen',
+    slot_bridge_to_calvin: 'atp_nadph',
+    slot_co2_input: 'co2',
+    slot_stroma: 'stroma',
+    slot_pgal_output: 'pgal',
+    slot_bridge_to_light: 'adp_nadp'
+  });
 
-function Home({go}:{go:(v:View)=>void}){
- return <main className="home"><div className="home-copy"><div className="eyebrow"><span className="live"/> BİYOLOJİ · FOTOSENTEZ</div><h1>Bir bitki<br/><em>ışığı nasıl</em><br/>maddeye çevirir?</h1><p>Fotosentezi tek bir zincir olarak keşfet: <b>bitki hücresi → kloroplast → ışık tepkimeleri → Calvin döngüsü.</b></p><button className="primary" onClick={()=>go("cell")}>DERSİ BAŞLAT <ArrowRight/></button><div className="home-facts"><span><Sun/> Işık enerjisi</span><span><Droplets/> H₂O → O₂</span><span><Wind/> CO₂ → organik madde</span><span><Zap/> ATP + NADPH</span></div></div><div className="home-art"><div className="sun"><Sun/><b>GÜNEŞ</b></div><div className="plant"><div className="stem"/><div className="leaf l1"/><div className="leaf l2"/><div className="leaf l3"/><div className="leaf l4"/></div><div className="air co2">CO₂</div><div className="air o2">O₂</div><div className="art-note"><b>ANA FİKİR</b><span>Enerji akışı değişir, madde akışı korunur.</span></div></div></main>
-}
-function Page({children,view}:{children:React.ReactNode;view:View}){return <main className="page"><Progress view={view}/>{children}</main>}
+  // Play narration text if voiceEnabled
+  const handleSpeakText = useCallback((text: string) => {
+    if (!voiceEnabled) return;
+    speechService.speak(text);
+  }, [voiceEnabled]);
 
-function Cell({go,sound}:{go:(v:View)=>void;sound:boolean}){
- const [part,setPart]=useState("chloroplast");
- const parts:{id:string;name:string;desc:string}[]=[
- ["wall","Hücre çeperi","Hücreye dayanıklılık ve şekil kazandırır."],["membrane","Hücre zarı","Madde alışverişini seçici biçimde düzenler."],["nucleus","Çekirdek","Hücrenin genetik bilgisini içerir."],["vacuole","Koful","Su ve çözünmüş maddelerin depolanmasında rol oynar."],["chloroplast","Kloroplast","Fotosentezle ilişkili temel organeldir."]
- ];
- return <Page view="cell"><Title eyebrow="02 · HÜCRE" title={<>Önce fotosentezin <em>adresini</em> bul.</>} desc="Fotosentez yalnızca kloroplasttan ibaret değildir. Önce bitki hücresinin tamamını gör, sonra ilgili organeli seç." sound={sound} voice="Bitki hücresinde birçok yapı birlikte çalışır. Fotosentezle doğrudan ilişkili temel organel kloroplasttır. Kloroplastı seçerek daha yakından inceleyebiliriz."/><div className="cell-grid"><div className="cell-illustration"><div className="cell-shape"><div className="vacuole"/><button className="org nucleus" onClick={()=>setPart("nucleus")}>ÇEKİRDEK</button>{["wall","membrane","chloroplast","vacuole"].map((x,i)=><button key={x} className={"org chl"+i+" "+(part===x?"selected":"")} onClick={()=>setPart(x)}>{x==="chloroplast"?"KLOROPLAST":x==="vacuole"?"KOFUL":x==="wall"?"HÜCRE ÇEPERİ":"HÜCRE ZARI"}</button>)}</div><div className="cell-legend"><span>Bitki hücresi</span><small>Yapıları seçerek görevlerini incele</small></div></div><div className="info-panel"><span className="tag">YAPI · GÖREV</span><h2>{parts.find(x=>x[0]===part)?.name}</h2><p>{parts.find(x=>x[0]===part)?.desc}</p>{part==="chloroplast"&&<div className="answer-highlight"><Check/><span><b>İşte aradığımız organel.</b> Fotosentezin ayrıntılarına girmek için kloroplastın içine geçiyoruz.</span></div>}<Next onClick={()=>go(part==="chloroplast"?"chloroplast":"chloroplast")}>KLOROPLASTI İNCELE</Next></div></div></Page>
-}
-function Chloroplast({go,sound}:{go:(v:View)=>void;sound:boolean}){
- const [sel,setSel]=useState("stroma");
- const data:any={outer:["ÇİFT ZAR","Kloroplastın sınırını oluşturan dış ve iç zarlardır."],stroma:["STROMA","Kloroplastın iç sıvı bölgesidir. Calvin döngüsü burada gerçekleşir."],thylakoid:["TİLAKOİT ZARLARI","Işığa bağlı tepkimelerle ilişkili pigmentler ve elektron taşıma süreçleri burada bulunur."],granum:["GRANA","Tilakoitlerin üst üste dizilmesiyle oluşan yapılardır. Işığa bağlı tepkimelerle ilişkilidir."]};
- return <Page view="chloroplast"><Title eyebrow="03 · KLOROPLAST" title={<>Aynı organel, <em>iki çalışma alanı.</em></>} desc="Kloroplastın yapısını gördüğümüzde fotosentezin neden iki ana bölümde anlatıldığını da anlayabiliriz." sound={sound} voice="Kloroplast çift zarlı bir organeldir. Stromada Calvin döngüsü gerçekleşir. Tilakoit zarları ve grana ışığa bağlı tepkimelerle ilişkilidir."/><div className="cp-layout"><div className="cp-diagram"><button className={"cp-ring outer "+(sel==="outer"?"selected":"")} onClick={()=>setSel("outer")}><span>ÇİFT ZAR</span></button><div className={"stroma "+(sel==="stroma"?"selected":"")} onClick={()=>setSel("stroma")}><b>STROMA</b><small>Calvin döngüsü</small><div className="grana-wrap">{[0,1,2,3,4].map(i=><button key={i} className={"granum "+(sel==="granum"||sel==="thylakoid"?"selected":"")} onClick={()=>setSel(i%2?"thylakoid":"granum")}><i/><i/><i/><i/></button>)}</div></div><div className="cp-label">KLOROPLAST</div></div><div className="info-panel"><span className="tag">SEÇİLİ YAPI</span><h2>{data[sel]?.[0]||data.stroma[0]}</h2><p>{data[sel]?.[1]||data.stroma[1]}</p><div className="two-box"><div><b>STROMA</b><span>Calvin döngüsü</span></div><div><b>TİLAKOİT</b><span>Işığa bağlı tepkimeler</span></div></div><Next onClick={()=>go(sel==="stroma"?"calvin":"light")}>{sel==="stroma"?"CALVİN DÖNGÜSÜNE GEÇ":"IŞIK TEPKİMELERİNE GEÇ"}</Next></div></div></Page>
-}
-function Light({go,sound}:{go:(v:View)=>void;sound:boolean}){
- const stages=[
- ["Işık pigment tarafından soğurulur","Işık enerjisi pigmentlerde soğurulur ve elektronların uyarılmasına katkı sağlar.","IŞIK → e⁻"],
- ["Su parçalanır","Su elektron kaynağıdır. Parçalanma sonucunda elektronlar ve H⁺ oluşur; O₂ açığa çıkar.","H₂O → e⁻ + H⁺ + O₂"],
- ["Elektronlar ETS'den geçer","Elektronların taşıyıcılar boyunca aktarılması protonların tilakoit lümeninde birikmesine katkı sağlar.","e⁻ → ETS → H⁺"],
- ["ATP sentezlenir","H⁺ gradyanından yararlanılarak ATP sentaz üzerinden ATP sentezi gerçekleşir.","ADP + Pi → ATP"],
- ["NADPH oluşur","Elektron aktarımının sonunda NADP⁺ indirgenerek NADPH oluşur. ATP ve NADPH Calvin döngüsünde kullanılır.","NADP⁺ → NADPH"]
- ];
- const [step,setStep]=useState(0); const [run,setRun]=useState(false);
- useEffect(()=>{if(!run)return;const id=setInterval(()=>setStep(s=>{if(s===4){setRun(false);return 4}return s+1}),1500);return()=>clearInterval(id)},[run]);
- return <Page view="light"><Title eyebrow="04 · IŞIĞA BAĞLI TEPKİMELER" title={<>Işık enerjisini <em>ATP ve NADPH'ye</em> çevir.</>} desc="Burada amaç parçacıkları gerçekten takip etmek: elektron akışı, H⁺ birikimi ve ATP/NADPH oluşumu." sound={sound} voice="Işığa bağlı tepkimelerde pigmentler ışığı soğurur. Su parçalanır ve oksijen açığa çıkar. Elektron taşıma sistemi proton gradyanının oluşmasına katkı sağlar. ATP ve NADPH oluşur."/><div className="light-layout"><div className="stage-list">{stages.map((s,i)=><button className={i===step?"chosen":""} key={s[0]} onClick={()=>{setRun(false);setStep(i)}}><b>0{i+1}</b><span>{s[0]}</span><small>{s[2]}</small></button>)}</div><div className="thylakoid-scene"><div className="scene-label top">STROMA</div><div className="membrane"><div className="complex pigment"><b>PİGMENT</b><span>☀</span></div><div className="complex ets"><b>ETS</b><span>e⁻</span></div><div className="complex atps"><b>ATP SINTAZ</b><span>⚙</span></div><div className="complex nad"><b>NADP⁺</b><span>⇣</span></div></div><div className="lumen"><span className="h h1">H⁺</span><span className="h h2">H⁺</span><span className="h h3">H⁺</span><span className="h h4">H⁺</span><span className="h h5">H⁺</span><span className="h h6">H⁺</span><b>TİLAKOİT LÜMENİ</b></div><div className={"flow electrons s"+step}>{[1,2,3,4].map(i=><i key={i}>e⁻</i>)}</div><div className={"products "+(step>=3?"show":"")}><strong>ATP</strong>{step>=4&&<strong>NADPH</strong>}</div><div className="water"><Droplets/><span>H₂O → O₂</span></div></div><div className="stage-card"><span className="tag">ADIM {step+1} / 5</span><h2>{stages[step][0]}</h2><p>{stages[step][1]}</p><strong>{stages[step][2]}</strong><div className="controls"><button onClick={()=>setStep(Math.max(0,step-1))}><ArrowLeft/></button><button className="play" onClick={()=>setRun(!run)}>{run?<Pause/>:<Play/>}{run?" DURDUR":" AKIŞI OYNAT"}</button><button onClick={()=>setStep(Math.min(4,step+1))}><ArrowRight/></button></div></div></div><div className="result-strip"><b>SONUÇ</b><span>ATP + NADPH hazır → Calvin döngüsüne aktarılır.</span><Next onClick={()=>go("calvin")}>CALVİN'E GEÇ</Next></div></Page>
-}
-function Calvin({go,sound}:{go:(v:View)=>void;sound:boolean}){
- const [phase,setPhase]=useState(0);const phases=[["Karbonun bağlanması","CO₂ karbon kaynağı olarak döngüye girer."],["İndirgenme","ATP enerji sağlar, NADPH indirgeme gücü sağlar."],["Organik ürün","Döngüden G3P/PGAL gibi organik karbon ürünleri çıkabilir."],["Yenilenme","Karbon alıcısı yeniden oluşturulur ve döngü devam eder."]];
- return <Page view="calvin"><Title eyebrow="05 · CALVİN DÖNGÜSÜ" title={<>CO₂'yi <em>organik karbona</em> dönüştür.</>} desc="Işığa bağlı tepkimelerin ürettiği ATP ve NADPH burada kullanılır. Böylece enerji dönüşümü ile karbonun işlenmesi birbirine bağlanır." sound={sound} voice="Calvin döngüsünde karbondioksit karbon kaynağıdır. ATP enerji, NADPH indirgeme gücü sağlar. Döngü sonucunda G3P veya PGAL gibi organik karbon ürünleri oluşabilir ve karbon alıcısı yenilenir."/><div className="calvin-layout"><div className="inputs"><div className="molecule co2m">CO₂<small>karbon kaynağı</small></div><div className="molecule atpm">ATP<small>enerji</small></div><div className="molecule nadm">NADPH<small>indirgeme</small></div></div><div className="cycle"><div className="cycle-arrow">↻</div><div className="cycle-core"><Leaf/><b>CALVİN</b><span>DÖNGÜSÜ</span></div>{["CO₂","ATP","G3P","ADP","NADPH","RuBP"].map((x,i)=><i key={x} style={{"--a":i*60+"deg"} as React.CSSProperties}>{x}</i>)}</div><div className="output"><div className="product-big">G3P<small>organik karbon ürünü</small></div><div className="branch"><span>bir kısmı</span><b>organik madde</b></div><div className="branch"><span>bir kısmı</span><b>döngünün yenilenmesi</b></div></div></div><div className="phase-tabs">{phases.map((x,i)=><button className={i===phase?"active":""} onClick={()=>setPhase(i)} key={x[0]}><b>0{i+1}</b><span>{x[0]}</span><small>{x[1]}</small></button>)}</div><div className="phase-focus"><span className="tag">FAZ {phase+1}</span><h2>{phases[phase][0]}</h2><p>{phases[phase][1]}</p>{phase===1&&<div className="connection"><Zap/> ATP + NADPH <ChevronRight/> Calvin</div>}</div><Next onClick={()=>go("factors")}>FOTOSENTEZ HIZINA BAK</Next></Page>
-}
-function Factors({go,sound}:{go:(v:View)=>void;sound:boolean}){
- const [light,setLight]=useState(70),[co2,setCo2]=useState(55),[temp,setTemp]=useState(25);const tempF=Math.max(0,100-Math.abs(temp-25)*4);const rate=Math.round(Math.min(light,co2,tempF));const limiting=rate===light?"Işık":rate===co2?"CO₂":"Sıcaklık";
- return <Page view="factors"><Title eyebrow="06 · HIZ LABORATUVARI" title={<>Hangisi fotosentezi <em>sınırlandırıyor?</em></>} desc="Üç değişkeni değiştir. Hızın en düşük değere bağlı kaldığını gözlemle: sınırlayıcı faktör." sound={sound} voice="Fotosentez hızını ışık şiddeti, karbondioksit miktarı ve sıcaklık gibi faktörler etkiler. Bir faktör yetersiz kaldığında fotosentez hızı o faktör tarafından sınırlandırılabilir."/><div className="factor-layout"><div className="controls-card"><div className="slider"><label>IŞIK ŞİDDETİ <b>{light}%</b></label><input type="range" min="0" max="100" value={light} onChange={e=>setLight(+e.target.value)}/><small>düşük ← → yüksek</small></div><div className="slider"><label>CO₂ DÜZEYİ <b>{co2}%</b></label><input type="range" min="0" max="100" value={co2} onChange={e=>setCo2(+e.target.value)}/><small>düşük ← → yüksek</small></div><div className="slider"><label>SICAKLIK <b>{temp}°C</b></label><input type="range" min="0" max="50" value={temp} onChange={e=>setTemp(+e.target.value)}/><small>0°C ← → 50°C</small></div><button className="reset" onClick={()=>{setLight(70);setCo2(55);setTemp(25)}}><RotateCcw/> SIFIRLA</button></div><div className="factor-result"><div className="rate"><span>TAHMİNİ GÖRELİ FOTOSENTEZ HIZI</span><strong>{rate}%</strong><b>EN DÜŞÜK DEĞER: {limiting}</b></div><div className="bars"><div><span>Işık</span><i><em style={{width:light+"%"}}/></i><b>{light}%</b></div><div><span>CO₂</span><i><em style={{width:co2+"%"}}/></i><b>{co2}%</b></div><div><span>Sıcaklık</span><i><em style={{width:tempF+"%"}}/></i><b>{Math.round(tempF)}%</b></div></div><div className="limiting"><b>🧪 SINIRLAYICI FAKTÖR</b><strong>{limiting}</strong><p>Diğerlerini artırmak tek başına hızı aynı oranda artırmaz; önce sınırlayıcı koşulu iyileştirmek gerekir.</p></div></div></div><div className="result-strip"><b>ŞİMDİ SEN</b><span>Önce ışığı düşür, sonra CO₂'yi artır. Hız neden aynı kalıyor?</span><Next onClick={()=>go("quiz")}>SINIF SORULARINA GEÇ</Next></div></Page>
-}
-const questions=[["Fotosentezle doğrudan ilişkili temel organel hangisidir?","Kloroplast"],["Işığa bağlı tepkimelerde oluşan iki önemli ürün hangileridir?","ATP ve NADPH"],["Calvin döngüsünde karbon kaynağı olarak ne kullanılır?","CO₂"],["ATP ve NADPH'nin Calvin döngüsündeki rolü nedir?","Enerji ve indirgeme gücü sağlamak"]];
-function Quiz({go,sound}:{go:(v:View)=>void;sound:boolean}){
- const [q,setQ]=useState(0),[show,setShow]=useState(false);const cur=questions[q];
- return <Page view="quiz"><Title eyebrow="07 · SINIFA SOR" title={<>Şimdi <em>tahta sizde.</em></>} desc="Soruyu sınıfa yönelt. Cevabı hemen göstermeden birkaç saniye tartışmalarına izin ver; sonra cevabı aç." sound={sound} voice={cur[0]+" Cevap: "+cur[1]}/><div className="quiz"><div className="q-number">SORU {q+1} / {questions.length}</div><CircleHelp/><h2>{cur[0]}</h2>{show?<div className="answer"><Check/><span>CEVAP<br/><b>{cur[1]}</b></span></div>:<button className="reveal" onClick={()=>setShow(true)}>CEVABI GÖSTER</button>}<div className="quiz-nav"><button disabled={q===0} onClick={()=>{setQ(q-1);setShow(false)}}><ArrowLeft/> Önceki</button><button onClick={()=>{if(q===questions.length-1)go("home");else{setQ(q+1);setShow(false)}}}>{q===questions.length-1?"BAŞA DÖN":"SONRAKİ SORU"} <ArrowRight/></button></div></div></Page>
-}
-export default function App(){const[view,setView]=useState<View>("home"),[sound,setSound]=useState(false);const go=(v:View)=>{setView(v);window.scrollTo?.(0,0)};return <div className="app"><Header view={view} setView={setView} sound={sound} setSound={setSound}/>{view==="home"&&<Home go={go}/>} {view==="cell"&&<Cell go={go} sound={sound}/>} {view==="chloroplast"&&<Chloroplast go={go} sound={sound}/>} {view==="light"&&<Light go={go} sound={sound}/>} {view==="calvin"&&<Calvin go={go} sound={sound}/>} {view==="factors"&&<Factors go={go} sound={sound}/>} {view==="quiz"&&<Quiz go={go} sound={sound}/>}<footer><span>FOTOSENTEZ · ETKİLEŞİMLİ BİYOLOJİ DERSİ</span><b>01 — 07</b></footer></div>}
+  const handleToggleVoice = () => {
+    const nextState = !voiceEnabled;
+    setVoiceEnabled(nextState);
+    if (!nextState) {
+      speechService.stop();
+    } else {
+      soundEngine.play('photon');
+      speechService.speak('Sesli anlatım açıldı.');
+    }
+  };
+
+  // Keyboard navigation for smartboard / teacher clicker (Left Arrow: Prev, Right Arrow: Next)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeIdx = STAGES.findIndex((s) => s.id === currentStage);
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+        if (activeIdx < STAGES.length - 1) {
+          setCurrentStage(STAGES[activeIdx + 1].id);
+          soundEngine.play('photon');
+        }
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        if (activeIdx > 0) {
+          setCurrentStage(STAGES[activeIdx - 1].id);
+          soundEngine.play('photon');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentStage]);
+
+  // Stop speech when switching stages
+  const handleSelectStage = (stage: PresentationStage) => {
+    speechService.stop();
+    soundEngine.play('photon');
+    setCurrentStage(stage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleModelSaved = (placements: Record<string, string>) => {
+    setStudentPlacements(placements);
+    handleSelectStage('scientific_model');
+  };
+
+  const currentStageDef = STAGES.find((s) => s.id === currentStage) || STAGES[0];
+
+  return (
+    <div className="min-h-screen bg-[#f7faf5] text-[#143823] flex flex-col justify-between selection:bg-emerald-200 selection:text-emerald-900">
+      {/* 1. TOP HEADER WITH THE 13 SMARTBOARD STAGES */}
+      <NavigationHeader
+        currentStage={currentStage}
+        onSelectStage={handleSelectStage}
+        voiceEnabled={voiceEnabled}
+        onToggleVoice={handleToggleVoice}
+      />
+
+      {/* 2. MAIN ACTIVE STAGE (13 COMPLETE CLASSROOM STAGES) */}
+      <main className="flex-1 flex flex-col justify-center items-center w-full px-2 sm:px-4 py-2">
+        {/* 01 - Giriş / Başlangıç */}
+        {currentStage === 'home' && (
+          <HomeStage
+            onStartCourse={() => handleSelectStage('cell')}
+            voiceEnabled={voiceEnabled}
+            onSpeakText={handleSpeakText}
+          />
+        )}
+
+        {/* 02 - Bitki Hücresi (Mitokondri & Sitoplazma Dahil) */}
+        {currentStage === 'cell' && (
+          <CellStage
+            onNextStage={() => handleSelectStage('chloroplast')}
+            voiceEnabled={voiceEnabled}
+            onSpeakText={handleSpeakText}
+          />
+        )}
+
+        {/* 03 - Kloroplast Anatomisi (Stroma & Tilakoit Zarlar) */}
+        {currentStage === 'chloroplast' && (
+          <ChloroplastStage
+            onGoToLightReactions={() => handleSelectStage('light')}
+            onGoToCalvin={() => handleSelectStage('calvin')}
+            voiceEnabled={voiceEnabled}
+            onSpeakText={handleSpeakText}
+          />
+        )}
+
+        {/* 04 - Işığa Bağlı Tepkimeler (Fotoliz, ETS, Proton Gradyanı & ATP Sentaz) */}
+        {currentStage === 'light' && (
+          <LightReactionsStage
+            onGoToCalvin={() => handleSelectStage('calvin')}
+            voiceEnabled={voiceEnabled}
+            onSpeakText={handleSpeakText}
+          />
+        )}
+
+        {/* 05 - Calvin Döngüsü (Stroma, CO₂, Rubisko, ATP/NADPH & PGAL) */}
+        {currentStage === 'calvin' && (
+          <CalvinCycleStage
+            onGoToFactors={() => handleSelectStage('factors')}
+            voiceEnabled={voiceEnabled}
+            onSpeakText={handleSpeakText}
+          />
+        )}
+
+        {/* 06 - Hız Laboratuvarı (Işık, CO₂, Sıcaklık & Minimum Kuralı) */}
+        {currentStage === 'factors' && (
+          <FactorsStage
+            onGoToWholeSystem={() => handleSelectStage('whole_system')}
+            voiceEnabled={voiceEnabled}
+            onSpeakText={handleSpeakText}
+          />
+        )}
+
+        {/* 07 - Tüm Sistem (Işık Tepkimeleri ve Calvin Döngüsünün Tam Entegre Devresi) */}
+        {currentStage === 'whole_system' && (
+          <WholeSystemStage
+            onGoToPigments={() => handleSelectStage('pigments')}
+            voiceEnabled={voiceEnabled}
+            onSpeakText={handleSpeakText}
+          />
+        )}
+
+        {/* 08 - Pigmentler & Soğurma Spektrumu (Klorofil a/b, Karotenoidler, 380-750nm) */}
+        {currentStage === 'pigments' && (
+          <PigmentsStage
+            onGoToBuildModel={() => handleSelectStage('build_model')}
+            voiceEnabled={voiceEnabled}
+            onSpeakText={handleSpeakText}
+          />
+        )}
+
+        {/* 09 - Modelini Kur (Öğrencinin Kendi Fotosentez Modelini Tasarlaması) */}
+        {currentStage === 'build_model' && (
+          <BuildModelStage
+            onGoToCompare={handleModelSaved}
+            voiceEnabled={voiceEnabled}
+            onSpeakText={handleSpeakText}
+          />
+        )}
+
+        {/* 10 - Bilimsel Model (Öğretmenin Bilimsel Referans Modeli) */}
+        {currentStage === 'scientific_model' && (
+          <ScientificModelStage
+            onGoToCompare={() => handleSelectStage('compare')}
+            voiceEnabled={voiceEnabled}
+            onSpeakText={handleSpeakText}
+          />
+        )}
+
+        {/* 11 - Karşılaştır (Öğrenci Modeli vs Bilimsel Model - Eksik & Yanlış Analizi) */}
+        {currentStage === 'compare' && (
+          <CompareStage
+            studentPlacements={studentPlacements}
+            onGoToRevise={() => handleSelectStage('revise')}
+            voiceEnabled={voiceEnabled}
+            onSpeakText={handleSpeakText}
+          />
+        )}
+
+        {/* 12 - Modelini Revize Et (Kanıtlara Göre Düzeltilmiş Model & Revizyon Raporu) */}
+        {currentStage === 'revise' && (
+          <ReviseStage
+            onGoToFinalPresentation={() => handleSelectStage('final_presentation')}
+            voiceEnabled={voiceEnabled}
+            onSpeakText={handleSpeakText}
+          />
+        )}
+
+        {/* 13 - Sunuma Hazır Son Model & Sınıfa Sor (Pekiştirme Soruları & Şema Doldurma) */}
+        {currentStage === 'final_presentation' && (
+          <QuizStage
+            onRestartPresentation={() => handleSelectStage('home')}
+            onNavigateToStage={(stage) => handleSelectStage(stage)}
+            voiceEnabled={voiceEnabled}
+            onSpeakText={handleSpeakText}
+          />
+        )}
+      </main>
+
+      {/* 3. MINIMAL CLASSROOM SMARTBOARD FOOTER */}
+      <footer className="border-t border-[#e2ece0] bg-white/70 backdrop-blur-sm px-4 sm:px-6 py-2.5 text-xs text-[#52705e] select-none">
+        <div className="max-w-[1550px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="font-extrabold text-[#166534]">
+              Bölüm {currentStageDef.number} / 13:
+            </span>
+            <span className="font-medium text-[#143823]">
+              {currentStageDef.fullTitle}
+            </span>
+            <span className="text-[#86a190] hidden md:inline">
+              · Önerilen Süre: {currentStageDef.suggestedDuration}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 text-[11px] text-[#6d8a78]">
+            <span className="hidden sm:inline">
+              Akıllı Tahta İpucu: Klavye veya sunum kumandasında <b>←</b> ve <b>→</b> tuşları ile bölümler arasında geçiş yapabilirsiniz.
+            </span>
+            <span className="font-bold text-[#166534]">10. Sınıf Biyoloji</span>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default App;
